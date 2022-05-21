@@ -26,8 +26,17 @@
 #include "matrix_algo.h"
 #include <easy3d/optimizer/optimizer_lm.h>
 
-
 using namespace easy3d;
+
+void centroid(const std::vector<Vector2D> & points, double & sx, double & sy){
+    double sum_x, sum_y;
+    for(int i = 0; i < points.size(); i++){
+        sum_x += points[i].x();
+        sum_y += points[i].y();
+    }
+    sx = sum_x/points.size();
+    sy = sum_y/points.size();
+}
 
 
 /**
@@ -133,20 +142,32 @@ bool Triangulation::triangulation(
     // implementation starts ...
 
     // TODO: check if the input is valid (always good because you never known how others will call your function).
-    std::cout << points_0.size() << std::endl;
-    std::cout << points_1.size() << std::endl;
-    std::cout << cx << std::endl;
-    std::cout << cy << std::endl;
-    std::cout << fx << std::endl;
-    std::cout << fy << std::endl;
-
-
 
 
     // TODO: Estimate relative pose of two views. This can be subdivided into
     //      - estimate the fundamental matrix F;
+    Matrix F;
+    std::vector<Vector> points_0h, points_0n;
+    std::vector<Vector> points_1h, points_1n;
+
+    double p0_x, p0_y, p1_x, p1_y;
+    centroid(points_0, p0_x, p0_y);
+    centroid(points_1, p1_x, p1_y);
+
+    std::cout << p0_x << " " << p0_y << std::endl;
+    std::cout << p0_x << " " << p0_y << std::endl;
+    std::cout << cx << " " << cy << std::endl;
+
+
     //      - compute the essential matrix E;
+
+
+
+
     //      - recover rotation R and t.
+
+
+
 
     // TODO: Reconstruct 3D points. The main task is
     //      - triangulate a pair of image points (i.e., compute the 3D coordinates for each corresponding point pair)
