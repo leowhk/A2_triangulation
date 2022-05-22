@@ -28,15 +28,130 @@
 
 using namespace easy3d;
 
-void centroid(const std::vector<Vector2D> & points, double & sx, double & sy){
-    double sum_x, sum_y;
-    for(int i = 0; i < points.size(); i++){
-        sum_x += points[i].x();
-        sum_y += points[i].y();
+void find_centroid_translation(const std::vector<Vector2D> &points, Vector2D &c, std::vector<Vector2D> &translated) {
+    double sum_x, sum_y, sx, sy;
+    for (Vector2D po: points) {
+        sum_x += po.x();
+        sum_y += po.y();
     }
-    sx = sum_x/points.size();
-    sy = sum_y/points.size();
+
+    sx = sum_x / points.size();
+    sy = sum_y / points.size();
+    c = {sx, sy};
+
+    for (Vector2D pt : points){
+        double tx = pt.x() - c.x();
+        double ty = pt.y() - c.y();
+        Vector2D t_pt = {tx, ty};
+        translated.emplace_back(t_pt);
+    }
 }
+
+void find_scale_factor(const std::vector<Vector2D> &points, const Vector2D &c, double &s){
+    double sum;
+    for(Vector2D po: points){
+        sum += pow(po.x() - c.x(), 2) + pow(po.y() - c.y(),2);
+    }
+    s = sqrt(sum/points.size());
+}
+
+void ST_transform(const std::vector<Vector2D> &points, const double &s, std::vector<Vector2D> &scaled_points){
+    for(Vector2D pt : points){
+        double sx = pt.x()/s;
+        double sy = pt.y()/s;
+        Vector2D s_pt = {sx, sy};
+        scaled_points.emplace_back(s_pt);
+    }
+}
+
+void homo_coordinates(const std::vector<Vector2D> &points2D, std::vector<Vector3D> &h_points3D){
+    for (Vector2D pt : points2D){
+        Vector3D ya = pt.homogeneous();
+        h_points3D.emplace_back(ya);
+//        std::cout << ya << std::endl;
+    }
+}
+
+void find_f(const Matrix &W, Matrix33 &f){
+    // Compute SVD of W, where Wf = 0
+    int m = W.rows();
+    int n = W.cols();
+
+    Matrix U(m, m, 0.0);
+    Matrix S(m, n, 0.0);
+    Matrix V(n, n, 0.0);
+
+    svd_decompose(W, U, S, V);
+
+    //Last column of V gives you the f
+    Vector V_last = V.get_column(n-1);
+
+    f = {V_last[0], V_last[1], V_last[2],
+         V_last[3], V_last[4], V_last[5],
+         V_last[6], V_last[7], V_last[8]};
+}
+
+void compute_F(const std::vector<Vector3D> &points2D_0, const std::vector<Vector3D> &points2D_1,
+               Matrix &W, Matrix &F){
+
+    std::vector<double> line;
+    for(int i = 0; i < points2D_0.size(); i++){
+        double p0_x = points2D_0[i].x();
+        double p0_y = points2D_0[i].y();
+        double p0_z = points2D_0[i].z();
+        double p1_x = points2D_1[i].x();
+        double p1_y = points2D_1[i].y();
+        double p1_z = points2D_1[i].z();
+
+        line = {p1_x * p0_x, p1_y * p0_x, p1_z * p0_x,
+                p1_x * p0_y, p1_y * p0_y, p1_z * p0_y,
+                p1_x * p0_z, p1_y * p0_z, p1_z * p0_z};
+
+        W.set_row(i, line);
+    }
+
+    Matrix33 f;
+    find_f(W, f);
+    std::cout << f << std::endl;
+
+    int m = f.rows();
+    int n = f.cols();
+
+    Matrix U(m, m, 0.0);
+    Matrix S(m, n, 0.0);
+    Matrix V(n, n, 0.0);
+
+    svd_decompose(f, U, S, V);
+
+    S(2,2) = 0;
+    std::cout << S << std::endl;
+    F = U * S * V.transpose();
+
+//    std::vector<double> Fo(9, 0.0);
+//    std::vector<double> Zero(points2D_0.size(), 0.0);
+//
+//    solve_least_squares(W, Zero, Fo);
+//
+//    Matrix33 Fi (Fo[0],Fo[1],Fo[2],
+//                 Fo[3],Fo[4],Fo[5],
+//                 Fo[6],Fo[7],Fo[8]);
+//
+//    std::cout << Fi << std::endl;
+//
+//
+//    Matrix U(3, 3, 0.0);
+//    Matrix S(3, 3, 0.0);
+//    Matrix V(3, 3, 0.0);
+//
+//    svd_decompose(Fi, U, S, V);
+//
+//    std::cout << Fi << std::endl;
+//    std::cout << U << std::endl;
+//    std::cout << S << std::endl;
+//    std::cout << V.transpose() << std::endl;
+
+}
+
 
 
 /**
@@ -112,21 +227,21 @@ bool Triangulation::triangulation(
     M.set_column(1, Vector3D(5.5, 5.5, 5.5));
 
     /// define a 15 by 9 matrix (and all elements initialized to 0.0)
-    Matrix W(15, 9, 0.0);
+    Matrix WW(15, 9, 0.0);
     /// set the first row by a 9-dimensional vector
-    W.set_row(0, {0, 1, 2, 3, 4, 5, 6, 7, 8}); // {....} is equivalent to a std::vector<double>
+    WW.set_row(0, {0, 1, 2, 3, 4, 5, 6, 7, 8}); // {....} is equivalent to a std::vector<double>
 
     /// get the number of rows.
-    int num_rows = W.rows();
+    int num_rows = WW.rows();
 
     /// get the number of columns.
-    int num_cols = W.cols();
+    int num_cols = WW.cols();
 
     /// get the the element at row 1 and column 2
-    double value = W(1, 2);
+    double value = WW(1, 2);
 
     /// get the last column of a matrix
-    Vector last_column = W.get_column(W.cols() - 1);
+    Vector last_column = WW.get_column(WW.cols() - 1);
 
     /// define a 3 by 3 identity matrix
     Matrix33 I = Matrix::identity(3, 3, 1.0);
@@ -146,17 +261,54 @@ bool Triangulation::triangulation(
 
     // TODO: Estimate relative pose of two views. This can be subdivided into
     //      - estimate the fundamental matrix F;
+
+    // Step 1: Calculation the centroid from all cooridnates in the two images and translate
+    Vector2D centroid_0, centroid_1;
+    std::vector<Vector2D> Tpoints_0, Tpoints_1;
+
+    find_centroid_translation(points_0, centroid_0, Tpoints_0);
+    find_centroid_translation(points_1, centroid_1, Tpoints_1);
+
+//    std::cout << "Centroid 0: " << centroid_0 << std::endl;
+//    std::cout << "Centroid 1: " << centroid_1 << std::endl;
+//    for(int i=0; i < points_0.size(); i++){
+//        std::cout << points_0[i] << "\t\t" << Tpoints_0[i] << std::endl;
+//    }
+
+    // Step 2: Calculate the mean distance to centre from each of the two centroid points and scale
+    double s_0, s_1;
+    find_scale_factor(points_0, centroid_0, s_0);
+    find_scale_factor(points_1, centroid_1, s_1);
+//    std::cout << "scale factor on image 0: " << s_0 << std::endl;
+//    std::cout << "scale factor on image 1: " << s_1 << std::endl;
+
+    std::vector<Vector2D> STpoints_0, STpoints_1;
+    ST_transform(Tpoints_0, s_0, STpoints_0);
+    ST_transform(Tpoints_1, s_1, STpoints_1);
+
+//    std::cout << "\n\nSTpoints_0: " << std::endl;
+//    for(int i=0; i < points_0.size(); i++){
+//        std::cout << STpoints_0[i] << std::endl;
+//    }
+//    std::cout << "\n\nSTpoints_1: " << std::endl;
+//    for(int i=0; i < points_0.size(); i++){
+//        std::cout << STpoints_1[i] << std::endl;
+//    }
+
+//    std::cout << "\n\nHomogenouse coordinates on image 0: " << std::endl;
+    std::vector<Vector3D> nSTpoints_0, nSTpoints_1;
+    homo_coordinates(STpoints_0, nSTpoints_0);
+    homo_coordinates(STpoints_1, nSTpoints_1);
+
+    // computer Fundametal Matrix
+    Matrix W(points_0.size(), 9,0.0);
     Matrix F;
-    std::vector<Vector> points_0h, points_0n;
-    std::vector<Vector> points_1h, points_1n;
+    compute_F(nSTpoints_0, nSTpoints_1, W, F);
 
-    double p0_x, p0_y, p1_x, p1_y;
-    centroid(points_0, p0_x, p0_y);
-    centroid(points_1, p1_x, p1_y);
 
-    std::cout << p0_x << " " << p0_y << std::endl;
-    std::cout << p0_x << " " << p0_y << std::endl;
-    std::cout << cx << " " << cy << std::endl;
+    // rank 2 constraint
+
+
 
 
     //      - compute the essential matrix E;
