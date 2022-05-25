@@ -164,6 +164,28 @@ void transformation_matrix(const std::vector<Vector2D> &points, const std::vecto
     }
 }
 
+void find_Rt(const Matrix33 &Essential, Matrix33 &R, Vector3D &t){
+    // Compute SVD of W, where Wf = 0
+    int m = Essential.rows();
+    int n = Essential.cols();
+
+    Matrix U(m, m, 0.0);
+    Matrix S(m, n, 0.0);
+    Matrix V(n, n, 0.0);
+
+    svd_decompose(Essential, U, S, V);
+
+    std::cout << "/.....SVD DECOMPOSITION OF R...../" << std::endl;
+    std::cout << U << std::endl;
+    std::cout << S << std::endl;
+    std::cout << V << std::endl;
+    R = determinant(U * S * V.transpose()) * U * S * V.transpose();
+
+    t = U.get_column(U.cols() - 1);
+    std::cout << "/.....last column of U...../" << std::endl;
+    std::cout << t << std::endl;
+}
+
 
 /**
  * TODO: Finish this function for reconstructing 3D geometry from corresponding image points.
@@ -293,6 +315,7 @@ bool Triangulation::triangulation(
 //    std::cout << "scale factor on image 0: " << s_0 << std::endl;
 //    std::cout << "scale factor on image 1: " << s_1 << std::endl;
 
+
     // Step 3: Translate the points with origin at the centroids with regards to scale
     std::vector<Vector2D> STpoints_0, STpoints_1;
     ST_transform(Tpoints_0, s_0, STpoints_0);
@@ -318,9 +341,10 @@ bool Triangulation::triangulation(
     std::cout << F << std::endl;
 
     // Check Det(F) = 0
-    std::cout << determinant(F) << std::endl; //very very close to zero, but not zero
+    std::cout << "determinant(F): " << std::endl; // very very close to zero, but not zero
+    std::cout << determinant(F) << std::endl; // very very close to zero, but not zero
 
-    //  Step 6: Calculate T1, and T2 (slide 14) think about how you are integrating it to F
+    // Step 6: Calculate T1, and T2 (slide 14) think about how you are integrating it to F
     Matrix O_matrix_0(points_0.size(),3,0.0);
     Matrix O_matrix_1(points_1.size(),3,0.0);
     Matrix T_matrix_0(points_0.size(), 3,0.0); // Transformed T0
@@ -329,20 +353,33 @@ bool Triangulation::triangulation(
     transformation_matrix(points_0, STpoints_0, O_matrix_0, T_matrix_0);
     transformation_matrix(points_1, STpoints_1, O_matrix_1, T_matrix_1);
 
-    Matrix33 new_F = O_matrix_0.transpose() * F * T_matrix_0;
-
     // Step 7: integrating into F to find new_F - "new_F = O_matrix_0.transpose() * F * T_matrix_0;"
+    Matrix33 new_F = O_matrix_0.transpose() * F * T_matrix_0;
     std::cout << new_F << std::endl;
 
-//    7 - scale scale_invariant F   where F(2,2) = 1.
+    // Step 8 - scale scale_invariant F   where F(2,2) = 1.
+    Matrix33 scaled_F = F / F(2, 2);
+    std::cout << scaled_F << std::endl;
 
-//    8 - calculate E and 4 Rt settings from it (slide 20 -27)
+    // Step 9 - calculate E and 4 Rt settings from it (slide 20 -27)
+    // K same for both cameras
+    Matrix33 K = {fx, 0, cx,
+                  0, fx, cx,
+                  0, 0, 1};
 
-//    9 - triangulate & compute inliers (slide 27)
+    // Essential Matrix
+    Matrix33 E = K.transpose() * scaled_F * K;
+    std::cout << E << std::endl;
 
-//    10 - choose best RT setting & evaluate
+    //Using SVD of E to get R and t
+    find_Rt(E, R, t);
+    R = R;
+    t = t;
+    
+    // 9 - triangulate & compute inliers (slide 27)
 
-//    Denormalise(F)
+
+    // 10 - choose best RT setting & evaluate
 
 
 
