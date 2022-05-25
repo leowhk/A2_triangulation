@@ -353,12 +353,15 @@ bool Triangulation::triangulation(
     transformation_matrix(points_1, STpoints_1, O_matrix_1, T_matrix_1);
 
     // Step 7: integrating into F to find new_F - "new_F = O_matrix_0.transpose() * F * T_matrix_0;"
-    Matrix33 new_F = O_matrix_0.transpose() * F * T_matrix_0;
-    std::cout << new_F << std::endl;
+    Matrix33 new_F_0 = O_matrix_0.transpose() * F * T_matrix_0;
+    Matrix33 new_F_1 = O_matrix_1.transpose() * F * T_matrix_1;
+
+    std::cout << new_F_0 << std::endl;
+    std::cout << new_F_1 << std::endl;
 
     // Step 8 - scale scale_invariant F   where F(2,2) = 1.
-    Matrix33 scaled_F = F / F(2, 2);
-    std::cout << scaled_F << std::endl;
+    Matrix33 scaled_F_0 = new_F_0 / new_F_0(2, 2);
+    Matrix33 scaled_F_1 = new_F_1 / new_F_1(2, 2);
 
     // Step 9 - calculate E and 4 Rt settings from it (slide 20 -27)
     // K same for both cameras
@@ -367,31 +370,23 @@ bool Triangulation::triangulation(
                   0, 0, 1};
 
     // Essential Matrix
-    Matrix33 E = K.transpose() * scaled_F * K;
+    Matrix33 E = K.transpose() *  * K;
     std::cout << E << std::endl;
 
     //Using SVD of E to get R and t
     find_Rt(E, R, t);
-    Matrix33 pos_R = R;
-    Matrix33 neg_R = -R;
-    Vector3D pos_t = t;
-    Vector3D neg_t = -t;
 
     // 9 - triangulate & compute inliers (slide 27)
+    // Construct M
+    Vector M_matrix = K * R * t;
 
+    std::cout << "/.....M matrix...../" << std::endl;
+    std::cout << M_matrix << std::endl;
+
+    points_3d =
 
     // 10 - choose best RT setting & evaluate
 
-
-
-
-
-    //      - compute the essential matrix E;
-
-
-
-
-    //      - recover rotation R and t.
 
 
 
