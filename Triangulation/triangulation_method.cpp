@@ -180,7 +180,6 @@ void find_Rt(const Matrix33 &Essential, Matrix33 &R, Vector3D &t){
     std::cout << S << std::endl;
     std::cout << V << std::endl;
     R = determinant(U * S * V.transpose()) * U * S * V.transpose();
-
     t = U.get_column(U.cols() - 1);
     std::cout << "/.....last column of U...../" << std::endl;
     std::cout << t << std::endl;
@@ -373,9 +372,11 @@ bool Triangulation::triangulation(
 
     //Using SVD of E to get R and t
     find_Rt(E, R, t);
-    R = R;
-    t = t;
-    
+    Matrix33 pos_R = R;
+    Matrix33 neg_R = -R;
+    Vector3D pos_t = t;
+    Vector3D neg_t = -t;
+
     // 9 - triangulate & compute inliers (slide 27)
 
 
