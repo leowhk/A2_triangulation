@@ -28,7 +28,7 @@
 
 using namespace easy3d;
 
-void find_centroid_translation(const std::vector<Vector2D> &points, Vector2D &c, std::vector<Vector2D> &translated) {
+void find_centroid_translation(const std::vector<Vector2D> &points, Vector2D &c, std::vector<Vector2D> &translated_pts) {
     double sum_x, sum_y, sx, sy;
     for (Vector2D po: points) {
         sum_x += po.x();
@@ -43,7 +43,7 @@ void find_centroid_translation(const std::vector<Vector2D> &points, Vector2D &c,
         double tx = pt.x() - c.x();
         double ty = pt.y() - c.y();
         Vector2D t_pt = {tx, ty};
-        translated.emplace_back(t_pt);
+        translated_pts.emplace_back(t_pt);
     }
 }
 
@@ -152,6 +152,18 @@ void compute_F(const std::vector<Vector3D> &points2D_0, const std::vector<Vector
 
 }
 
+void transformation_matrix(const std::vector<Vector2D> &points, const std::vector<Vector2D> &transformed_points,
+                           Matrix &original_matrix, Matrix &transformed_matrix){
+
+    for(int i=0; i<points.size(); i++){
+        double transformed_px = transformed_points[i].x() - points[i].x();
+        double transformed_py = transformed_points[i].y() - points[i].y();
+        double original_px = points[i].x();
+        double original_py = points[i].y();
+        original_matrix.set_row(i, {original_px, original_py, 1});
+        transformed_matrix.set_row(i, {transformed_px, transformed_py, 1});
+    }
+}
 
 
 /**
@@ -262,7 +274,7 @@ bool Triangulation::triangulation(
     // TODO: Estimate relative pose of two views. This can be subdivided into
     //      - estimate the fundamental matrix F;
 
-    // Step 1: Calculation the centroid from all cooridnates in the two images and translate
+    // Step 1: FInd the centroid in the both images and translate points to new origin: centroid
     Vector2D centroid_0, centroid_1;
     std::vector<Vector2D> Tpoints_0, Tpoints_1;
 
@@ -282,6 +294,7 @@ bool Triangulation::triangulation(
 //    std::cout << "scale factor on image 0: " << s_0 << std::endl;
 //    std::cout << "scale factor on image 1: " << s_1 << std::endl;
 
+    // Step 3: Translate the points with origin at the centroids
     std::vector<Vector2D> STpoints_0, STpoints_1;
     ST_transform(Tpoints_0, s_0, STpoints_0);
     ST_transform(Tpoints_1, s_1, STpoints_1);
@@ -295,7 +308,7 @@ bool Triangulation::triangulation(
 //        std::cout << STpoints_1[i] << std::endl;
 //    }
 
-//    std::cout << "\n\nHomogenouse coordinates on image 0: " << std::endl;
+    // Step 4: Normalised
     std::vector<Vector3D> nSTpoints_0, nSTpoints_1;
     homo_coordinates(STpoints_0, nSTpoints_0);
     homo_coordinates(STpoints_1, nSTpoints_1);
@@ -304,9 +317,37 @@ bool Triangulation::triangulation(
     Matrix W(points_0.size(), 9,0.0);
     Matrix F;
     compute_F(nSTpoints_0, nSTpoints_1, W, F);
+    std::cout << F << std::endl;
 
+    // Check Check Det(F) = 0
+    std::cout << determinant(F) << std::endl; //very very close to zero, but not zero
+
+//    6 - calculate T1, and T2 (slide 14) think about how you are integrating it to F
+    Matrix O_matrix_0(points_0.size(),3,0.0);
+    Matrix O_matrix_1(points_1.size(),3,0.0);
+    Matrix T_matrix_0(points_0.size(), 3,0.0); // Transformed T0
+    Matrix T_matrix_1(points_1.size(), 3,0.0); // Transformed T1
+
+    transformation_matrix(points_0, STpoints_0, O_matrix_0, T_matrix_0);
+    transformation_matrix(points_1, STpoints_1, O_matrix_1, T_matrix_1);
+
+    Matrix33 reformed_F = O_matrix_0.transpose() * F * T_matrix_0;
+
+    std::cout << reformed_F << std::endl;
 
     // rank 2 constraint
+
+//    7 - scale scale_invariant F   where F(2,2) = 1.
+
+
+
+//    8 - calculate E and 4 Rt settings from it (slide 20 -27)
+
+//    9 - triangulate & compute inliers (slide 27)
+//    10 - choose best RT setting & evaluate
+
+//    Denormalise(F)
+
 
 
 
